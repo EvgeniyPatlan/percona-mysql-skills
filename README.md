@@ -76,5 +76,3 @@ Once installed, skills activate automatically. When your question matches a skil
 ## Contributions and Improvements
 
 Open for improvements and more skills. Contributions and feedback welcome via pull requests.
-
-Inspired by and modeled on the [MariaDB Agent Skills](https://github.com/MariaDB/skills) format.
