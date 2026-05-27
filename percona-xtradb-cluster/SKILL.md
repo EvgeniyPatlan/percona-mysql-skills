@@ -26,6 +26,10 @@ Percona XtraDB Cluster is Percona Server bundled with the Galera replication lib
 | Running a 2-node cluster for HA | A 2-node cluster loses quorum if one node fails. Use 3 nodes (or 2 + a `garbd` arbitrator) |
 | Putting `wsrep_cluster_address=gcomm://` permanently in config to bootstrap | That makes every restart bootstrap a **new** cluster. Bootstrap only via `systemctl start mysql@bootstrap.service` |
 | `wsrep_slave_threads` in new configs | Deprecated (since 8.0.26-16). Use `wsrep_applier_threads` |
+| `wsrep_flow_control_paused > 0` read as a network problem | It means a node's apply queue is full and it's throttling all writers — check that node's I/O and applier threads |
+| HAProxy `option mysql-check` / raw TCP health check | Use `option httpchk` with `clustercheck` (port 9200) so `JOINING`/`DONOR` nodes are excluded |
+| `pc.bootstrap=true` on a survivor during a network partition | Only when the others are confirmed down — otherwise you get two diverging clusters needing full SST |
+| Different SSL certs per node | All nodes (and garbd) must share identical CA/cert/key files or they won't join |
 
 ## Core Concepts
 
@@ -78,6 +82,61 @@ Open ports **3306** (SQL), **4567** (group comm), **4444** (SST), **4568** (IST)
 | `wsrep_applier_threads` | `1` | Parallel apply (tune to `wsrep_cert_deps_distance`) |
 | `wsrep_sync_wait` | `0` | Causal-read consistency level |
 
+## Monitoring Cluster Health
+
+```sql
+SHOW GLOBAL STATUS LIKE 'wsrep%';
+```
+| Variable | Healthy | Alarm |
+|---|---|---|
+| `wsrep_cluster_status` | `Primary` | anything else = not in the primary component |
+| `wsrep_local_state_comment` | `Synced` | `Joining`/`Donor/Desynced` = not ready |
+| `wsrep_ready` | `ON` | `OFF` → error 1047 on all DML |
+| `wsrep_flow_control_paused` | ~`0` | `> 0.1` = a node is throttling the whole cluster |
+| `wsrep_local_recv_queue_avg` | `0` | sustained `> 0` = this node can't keep up |
+| `wsrep_local_cert_failures` / `wsrep_local_bf_aborts` | flat | rising = hot-row certification conflicts |
+
+## Flow Control
+
+When a slow node's receive queue hits `gcs.fc_limit` (default 100) it sends `FC_PAUSE` and **every writer cluster-wide stalls** until it catches up. Diagnose:
+```sql
+SHOW STATUS LIKE 'wsrep_flow_control_paused';  -- fraction of time paused; >0.1 is bad
+SHOW STATUS LIKE 'wsrep_flow_control_sent';    -- this node is the bottleneck if rising
+```
+Fix the slow node (disk I/O, raise `wsrep_applier_threads` toward `wsrep_cert_deps_distance`) — it is rarely a network issue.
+
+## Load Balancing
+
+Health-check on cluster state, not raw TCP, so traffic never goes to a `JOINING`/`DONOR` node.
+- **HAProxy** — use `option httpchk` against the `clustercheck` script (port 9200), not `option mysql-check`.
+- **ProxySQL** — add nodes to a hostgroup and set a monitor user; drain a node gracefully for maintenance with `SET GLOBAL pxc_maint_mode=MAINTENANCE;` (ProxySQL stops routing after ~10s), then `DISABLED` when done.
+
+## garbd (Galera Arbitrator)
+
+A voting-only daemon (no data) to give an even node count a quorum tiebreaker — cheaper than a third full node.
+```ini
+# /etc/default/garb
+GALERA_NODES="10.0.0.1:4567,10.0.0.2:4567"
+GALERA_GROUP="pxc-prod"
+# SSL is ON by default in PXC 8.x — garbd MUST set a cipher or it crashes (gnu::NotSet):
+GALERA_OPTIONS="socket.ssl_cipher=AES128-SHA256;socket.ssl_key=...;socket.ssl_cert=...;socket.ssl_ca=..."
+```
+
+## Encryption & Large Transactions
+
+- **Traffic encryption** is ON by default (`pxc_encrypt_cluster_traffic=ON`, covers SST/IST/replication). All nodes must use **identical** cert files; changing it needs a full cluster stop.
+- **Streaming replication** for huge transactions — by default the whole write-set is buffered in memory (`wsrep_max_ws_size` 2 GB). Fragment a big batch instead:
+  ```sql
+  SET SESSION wsrep_trx_fragment_unit='rows';
+  SET SESSION wsrep_trx_fragment_size=10000;
+  ```
+
+## Troubleshooting & Upgrades
+
+- **Error 1047 / node won't accept writes** — check `wsrep_cluster_status`/`wsrep_ready`. A minority partition refuses writes by design.
+- **All nodes crashed (`seqno: -1`)** — run `mysqld --wsrep-recover` on each, bootstrap the highest seqno (`safe_to_bootstrap: 1`). Only use `SET GLOBAL wsrep_provider_options='pc.bootstrap=true'` when the other nodes are *confirmed down* — doing it during a mere network partition creates a split-brain.
+- **Rolling 8.0 → 8.4 upgrade** — one node at a time (remove 8.0 packages, keep datadir, install 8.4, start → auto-upgrade + SST rejoin); keep writes on 8.0 nodes during the mixed window and avoid 8.4-only DDL until done. PXC 8.4 switches keyring plugin → component and defaults to `caching_sha2_password` (needs ProxySQL ≥ 2.6.2).
+
 ## PXC vs Async vs Group Replication
 
 - **PXC** — strong consistency, no data loss on failover, automatic node provisioning; best within one low-latency datacenter; needs apps that retry on 1213. Min 3 nodes.
@@ -92,5 +151,8 @@ Open ports **3306** (SQL), **4567** (group comm), **4444** (SST), **4568** (IST)
 - [State Snapshot Transfer](https://docs.percona.com/percona-xtradb-cluster/8.4/state-snapshot-transfer.html)
 - [Online schema upgrade (TOI/RSU/NBO)](https://docs.percona.com/percona-xtradb-cluster/8.4/online-schema-upgrade.html)
 - [Crash recovery](https://docs.percona.com/percona-xtradb-cluster/8.4/crash-recovery.html)
+- [Monitoring the cluster](https://docs.percona.com/percona-xtradb-cluster/8.4/monitoring.html)
+- [Load balancing with ProxySQL](https://docs.percona.com/percona-xtradb-cluster/8.4/load-balance-proxysql.html) · [HAProxy](https://docs.percona.com/percona-xtradb-cluster/8.4/haproxy.html)
+- [Galera Arbitrator (garbd)](https://docs.percona.com/percona-xtradb-cluster/8.4/garbd-howto.html) · [Encrypt traffic](https://docs.percona.com/percona-xtradb-cluster/8.4/encrypt-traffic.html)
 
 *Replace `8.4` with your major version. For anything not covered here, see [docs.percona.com/percona-xtradb-cluster](https://docs.percona.com/percona-xtradb-cluster).*

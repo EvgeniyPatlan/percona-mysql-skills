@@ -26,6 +26,8 @@ For backups (Percona XtraBackup), `pt-*` tools (Percona Toolkit), clustering (PX
 | "Keyring Vault needs MySQL Enterprise" | Percona Server ships the **HashiCorp Vault keyring** component in the open-source build |
 | Killing stuck idle transactions with a cron of `KILL` | `SET GLOBAL kill_idle_transaction = N;` ends transactions idle longer than N seconds |
 | Storing IP/blob columns uncompressed and writing a compression layer | **Compressed columns with dictionaries** for `VARCHAR`/`BLOB`/`JSON` (`COLUMN_FORMAT COMPRESSED`) |
+| `UUID()` or random `uuid_v4()` as a primary key | Install `component_uuid_vx_udf` and use `uuid_v7()` — time-ordered, so it doesn't fragment the clustered index |
+| A second admin account for monitoring that shows up in `mysql.user` | The **utility user** (`my.cnf`) is invisible to `mysql.user`/`performance_schema` and unmodifiable by root |
 
 ## Instrumentation & Diagnostics
 
@@ -100,6 +102,34 @@ UNLOCK BINLOG;
 UNLOCK TABLES;
 ```
 
+## Components & UDFs Worth Knowing
+
+Percona Server ships extra components/UDFs you `INSTALL` on demand:
+
+```sql
+-- UUIDv7 for index-friendly primary keys (time-ordered, unlike random UUIDv4/UUID())
+INSTALL COMPONENT 'file://component_uuid_vx_udf';
+SELECT uuid_v7();                                   -- 019010f6-0426-70f0-...
+SELECT uuid_vx_to_timestamp('0190...');             -- extract creation time
+
+-- Compression dictionaries for repetitive JSON/text columns
+CREATE COMPRESSION_DICTIONARY ev_keys ('timestamp' 'status' 'user_id' 'payload');
+CREATE TABLE events (
+  id INT PRIMARY KEY,
+  data JSON COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY ev_keys
+) ENGINE=InnoDB;
+
+-- PITR helpers: locate the binlog containing a GTID
+INSTALL COMPONENT 'file://component_binlog_utils_udf';
+SELECT CAST(get_binlog_by_gtid('<uuid>:123') AS CHAR);
+```
+
+- **Utility user** — an invisible admin account for automation/DBaaS, configured only in `my.cnf` (`utility_user`, `utility_user_password`, `utility_user_privileges`, `utility_user_schema_access`). It never appears in `mysql.user`, `USER_STATISTICS`, or `performance_schema`, and root cannot see or modify it.
+- **ProcFS plugin** — read `/proc` files via `INFORMATION_SCHEMA.PROCFS` (always with a `WHERE FILE=...`); useful where you can't shell into the OS.
+- **Threadpool tuning** — `thread_pool_size` (≈ CPU cores), `thread_pool_stall_limit`, `thread_pool_high_prio_mode`; built into the binary (not a plugin). Most beneficial at high connection counts.
+
+Several larger areas — **data-at-rest encryption** (incl. KMIP/AWS KMS keyrings), the **Audit Log Filter**, **data masking**, and **JavaScript stored procedures** (`js_lang`, tech preview 8.4) — are deep enough for their own guidance; check the docs for full SQL.
+
 ## Percona Server Pro
 
 Percona also offers **Percona Server Pro** builds (extra packaging/support features) on top of the open-source server. The core enhancements above are in the standard open-source build; do not assume a feature requires Pro unless the docs say so.
@@ -114,5 +144,7 @@ Percona also offers **Percona Server Pro** builds (extra packaging/support featu
 - [Audit Log Filter overview](https://docs.percona.com/percona-server/8.4/audit-log-filter-overview.html)
 - [MyRocks](https://docs.percona.com/percona-server/8.4/myrocks-index.html)
 - [Threadpool](https://docs.percona.com/percona-server/8.4/threadpool.html)
+- [UUID versions (uuid_vx)](https://docs.percona.com/percona-server/8.4/uuid-versions.html) · [Utility user](https://docs.percona.com/percona-server/8.4/utility-user.html)
+- [Compressed columns](https://docs.percona.com/percona-server/8.4/compressed-columns.html) · [Data masking](https://docs.percona.com/percona-server/8.4/data-masking-overview.html)
 
 *Replace `8.4` in the URLs with your server's major version. For anything not covered here, see the official docs at [docs.percona.com/percona-server](https://docs.percona.com/percona-server).*

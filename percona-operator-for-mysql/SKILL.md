@@ -30,6 +30,9 @@ Both automate deployment, failover, backups (via XtraBackup), scaling, upgrades,
 | Backup storage without a credentials Secret | S3/GCS/Azure storage needs a Kubernetes Secret with credentials, referenced from the CR |
 | Wrong Helm chart for the operator type | PXC: `percona/pxc-operator` + `percona/pxc-db`; PS: `percona/ps-operator` + `percona/ps-db` |
 | Stale/missing `crVersion` after an operator upgrade | `crVersion` must match the operator version or reconciliation misbehaves |
+| Connecting the app to `<cluster>-pxc-0` directly | Connect to the `<cluster>-haproxy` service (writes) or `-haproxy-replicas` (reads); pod connections bypass HA/failover |
+| `backupName` when restoring into a *different* cluster | Cross-cluster restore needs `backupSource` + cloud creds; PVC backups can't cross namespaces |
+| `pmmserverkey` for PMM 3 | PMM 3 uses a Grafana service-account token (`pmmservertoken`); `pmmserverkey` is the PMM 2 API key |
 
 ## Choosing the Operator
 
@@ -104,14 +107,52 @@ kubectl get pxc -n pxc        # status (use 'kubectl get ps' for the PS operator
 ```
 OpenShift: both operators install via OperatorHub / OLM (PXC operator is Red Hat Certified).
 
-## Backups
+## Backups & Restore
 
-Both operators back up with **Percona XtraBackup** to S3, Azure Blob, or (PS operator / on-prem PVC) GCS. Scheduled backups are defined in `spec.backup.schedule[]` (cron) with a retention policy; on-demand backups are a separate `…Backup` CR (`kubectl apply -f backup.yaml`). **PITR**: GA on the PXC operator (dedicated pod streams binlogs to cloud storage; incompatible with count retention — use bucket lifecycle); tech preview on the PS operator (via Percona Binlog Server). Incremental backups are tech preview on the PS operator (v1.1.0).
+Both operators back up with **Percona XtraBackup** to S3, Azure Blob, or (PS operator / on-prem PVC) GCS. Scheduled backups go in `spec.backup.schedule[]` (cron) with a retention policy; on-demand backups are a separate `…Backup` CR. **PITR** is GA on the PXC operator (a pod streams binlogs to cloud storage; incompatible with count retention — use bucket lifecycle), tech preview on the PS operator. Restore is its own CR:
+```yaml
+apiVersion: pxc.percona.com/v1
+kind: PerconaXtraDBClusterRestore
+metadata: { name: restore1 }
+spec:
+  pxcCluster: cluster1
+  backupName: backup1          # same cluster
+  # cross-cluster: use backupSource (with S3/Azure creds) instead of backupName
+  # pitr: { type: date, date: "2026-05-27 14:30:00", backupSource: { storageName: s3-backup } }
+```
+Disable PITR on the live cluster before restoring. Cross-cluster restore needs cloud storage (PVC backups are namespace-scoped).
+
+## Connecting Applications
+
+Apps connect to the **proxy service**, never directly to a pod:
+| Service | Use |
+|---|---|
+| `<cluster>-haproxy` | writes (routed to the primary) |
+| `<cluster>-haproxy-replicas` | reads only |
+| `<cluster>-proxysql` | writes + reads (if ProxySQL enabled) |
+```bash
+kubectl get secret cluster1-secrets -o jsonpath='{.data.root}' | base64 -d   # root password
+```
+
+## Scaling, Updates & Day-2 Ops
+
+- **Horizontal:** `kubectl patch pxc cluster1 --type merge -p '{"spec":{"pxc":{"size":5}}}'` (odd numbers only). **Vertical:** edit `spec.pxc.resources` (triggers a SmartUpdate rolling restart).
+- **Auto minor upgrades:** `spec.updateStrategy: SmartUpdate` + `spec.upgradeOptions.apply: Recommended`. Operator upgrade order: CRDs/Deployment → bump `crVersion` → pods roll (replicas first, primary last).
+- **Pause/resume:** `spec.pause: true|false`. **Delete keeps PVCs** by default — add the `delete-pxc-pvc` finalizer to drop data too.
+- **Debug a stuck reconcile:** `kubectl describe pxc cluster1` (events) → `kubectl logs <pod> -c pxc`.
+
+## TLS & Users
+
+- TLS certs are auto-provisioned when **cert-manager** is installed (90-day certs); `spec.sslSecretName` (external) and `spec.sslInternalSecretName` (internal) name the Secrets.
+- System users live in `cluster1-secrets` (`root`, `xtrabackup`, `monitor`, `operator`, …); rotate by patching the Secret. Declarative app users via `spec.users[]` (PXC operator v1.16.0+).
+- **Monitoring:** set `spec.pmm.enabled: true` with `image: percona/pmm-client:3` and a `serverHost`. Auth differs by PMM major: PMM 3 uses a service-account **token** (`pmmservertoken`), PMM 2 uses an API **key** (`pmmserverkey`).
+- Spread pods with `spec.pxc.affinity.antiAffinityTopologyKey` and protect quorum with `spec.pxc.podDisruptionBudget`.
 
 ## Sources
 
 - [Compare the operators](https://docs.percona.com/percona-operator-for-mysql/pxc/compare.html)
 - PXC operator: [architecture](https://docs.percona.com/percona-operator-for-mysql/pxc/architecture.html) · [helm](https://docs.percona.com/percona-operator-for-mysql/pxc/helm.html) · [backups](https://docs.percona.com/percona-operator-for-mysql/pxc/backups.html)
+- PXC operator: [restore](https://docs.percona.com/percona-operator-for-mysql/pxc/backups-restore.html) · [scaling](https://docs.percona.com/percona-operator-for-mysql/pxc/scaling.html) · [TLS](https://docs.percona.com/percona-operator-for-mysql/pxc/TLS.html) · [users](https://docs.percona.com/percona-operator-for-mysql/pxc/users.html)
 - PS operator: [how it works](https://docs.percona.com/percona-operator-for-mysql/ps/how-it-works.html) · [backups](https://docs.percona.com/percona-operator-for-mysql/ps/backups.html)
 
 *Replace versions/paths with your installed operator. For anything not covered here, see [docs.percona.com/percona-operator-for-mysql](https://docs.percona.com/percona-operator-for-mysql).*

@@ -25,6 +25,10 @@ Percona XtraBackup is a 100% open-source tool for **hot, non-blocking physical b
 | Assuming `--compress` means lz4 | Default is **zstd**. Use `--compress=lz4` for lz4. QuickLZ is gone in 8.4 |
 | Expecting incremental MyRocks backups to be small | MyRocks files are copied **in full** every backup — only InnoDB benefits from incrementals |
 | `FLUSH TABLES WITH READ LOCK` to "help" the backup | PXB already uses lightweight **backup locks** automatically; don't add a global read lock |
+| `xtrabackup --backup --stream \| xbcloud put …` | Use `--stream=xbstream` — bare `--stream` won't pipe to xbcloud; and check `${PIPESTATUS[0]}`, not `$?` |
+| Reading `xtrabackup_slave_info` for PITR on the backup's own host | That file holds the *source's* coordinates (for seeding a replica). For PITR use `xtrabackup_binlog_info` |
+| `--slave-info` alone when backing up a replica | Pair it with `--safe-slave-backup`, or the backup can be inconsistent if temp tables are open |
+| `CHANGE MASTER TO` / `START SLAVE` when rebuilding a replica | 8.4 removed them; use `CHANGE REPLICATION SOURCE TO` / `START REPLICA` (what `xtrabackup_slave_info` already writes) |
 
 ## Full Backup → Prepare → Restore
 
@@ -91,9 +95,68 @@ If a backup is both compressed and encrypted: **decrypt first, then decompress, 
 - `--lock-ddl=ON` (default) blocks DDL for the whole backup; `--lock-ddl=REDUCED` (8.4.0-5+) holds the lock only briefly — big win on large datasets, but incompatible with `--page-tracking`. `--lock-ddl-per-table` is deprecated.
 - Backing up a **PXC** node: add `--galera-info` (writes `xtrabackup_galera_info` with the cluster `uuid:seqno`). On restore for a bootstrap node, set `safe_to_bootstrap: 1` in `grastate.dat` (others `0`).
 
-## Partial Backups
+## Cloud Backups (xbcloud)
 
-Require `innodb_file_per_table=ON`, select with `--tables` / `--databases`. Partial backups are restored by **importing tablespaces**, not `--copy-back`, and cannot be the base for incrementals.
+Stream a backup straight to S3 / GCS / Azure / Swift / MinIO with no local staging — the pattern is `xtrabackup --backup --stream=xbstream | xbcloud put`. Note `--stream=xbstream` (not bare `--stream`) is required.
+
+```bash
+# Backup → S3
+xtrabackup --backup --stream=xbstream --parallel=4 2>backup.log | \
+  xbcloud put --storage=s3 --s3-bucket=mysql_backups --parallel=10 \
+    --s3-endpoint='s3.amazonaws.com' \
+    --s3-access-key="$AWS_KEY" --s3-secret-key="$AWS_SECRET" \
+    "$(date -I)-full"
+
+# Restore from S3
+xbcloud get s3://mysql_backups/2026-05-27-full --parallel=10 2>dl.log | \
+  xbstream -x -C /var/lib/mysql-restore --parallel=8
+
+xbcloud delete s3://mysql_backups/2026-05-27-full
+```
+Put credentials in a `[xbcloud]` group in `my.cnf` to keep them off the command line. In a pipe, check `${PIPESTATUS[0]}` for xtrabackup's exit code — `$?` only reflects xbcloud.
+
+## Point-in-Time Recovery
+
+Restore a physical backup, then replay binary logs from the position the backup recorded in `xtrabackup_binlog_info`.
+```bash
+xtrabackup --copy-back --target-dir=/backups/base && chown -R mysql:mysql /var/lib/mysql
+systemctl start mysql
+cat /backups/base/xtrabackup_binlog_info          # e.g. mysql-bin.000003   57
+mysqlbinlog /var/lib/mysql/mysql-bin.000003 /var/lib/mysql/mysql-bin.000004 \
+  --start-position=57 --stop-datetime="2026-05-27 14:00:00" | mysql -u root -p
+```
+
+## Rebuild a Replica From a Backup
+
+The most common production use. Back up the source (or an existing replica with `--slave-info --safe-slave-backup`), prepare, copy to the new node, then point replication at the recorded coordinates.
+```bash
+# GTID-based (preferred): xtrabackup_binlog_info line 3 holds the GTID set
+mysql -e "RESET BINARY LOGS AND GTIDS;
+          SET GLOBAL gtid_purged='<gtid-set-from-xtrabackup_binlog_info>';
+          CHANGE REPLICATION SOURCE TO SOURCE_HOST='src', SOURCE_USER='repl',
+            SOURCE_PASSWORD='***', SOURCE_AUTO_POSITION=1;
+          START REPLICA;"
+```
+`--slave-info` writes a ready-made `CHANGE REPLICATION SOURCE TO` into `xtrabackup_slave_info`. Use `xtrabackup_binlog_info` for the backup's own server; use `xtrabackup_slave_info` when seeding from a replica.
+
+## Single-Table Restore (export / import tablespace)
+
+For partial backups or recovering one table. Requires `innodb_file_per_table=ON` and the same major version on both ends.
+```bash
+xtrabackup --prepare --export --target-dir=/backups/base      # makes .cfg (+ .cfp if encrypted)
+# on target: recreate the table DDL exactly, then:
+mysql db -e "ALTER TABLE t DISCARD TABLESPACE;"
+cp /backups/base/db/t.{ibd,cfg} /var/lib/mysql/db/ && chown mysql:mysql /var/lib/mysql/db/t.*
+mysql db -e "ALTER TABLE t IMPORT TABLESPACE;"
+```
+
+## Other Useful Options
+
+- `--throttle=N` — cap I/O to N×10 MB/s on shared hosts (too low risks redo-log wraparound; pair with `--register-redo-log-consumer` on write-heavy replicas).
+- `--safe-slave-backup --slave-info` — the safe combo when backing up a replica.
+- `--history=<name>` — record each run in `PERCONA_SCHEMA.XTRABACKUP_HISTORY`; base incrementals on it with `--incremental-history-name`.
+- Partial backups: `innodb_file_per_table=ON`, select with `--tables` / `--databases`; restored by import (above), never `--copy-back`, and cannot be an incremental base.
+- Large `--prepare`: `--use-memory=2G` (or `--use-free-memory-pct=50`) is far faster than the 128 MB default.
 
 ## Sources
 
@@ -104,5 +167,8 @@ Require `innodb_file_per_table=ON`, select with `--tables` / `--databases`. Part
 - [Incremental backups](https://docs.percona.com/percona-xtrabackup/8.4/create-incremental-backup.html)
 - [Compress & encrypt](https://docs.percona.com/percona-xtrabackup/8.4/create-compressed-backup.html)
 - [Reduced-lock backups](https://docs.percona.com/percona-xtrabackup/8.4/reduction-in-locks.html)
+- [Backup to cloud storage (xbcloud)](https://docs.percona.com/percona-xtrabackup/8.4/xbcloud-binary-overview.html)
+- [Point-in-time recovery](https://docs.percona.com/percona-xtrabackup/8.4/point-in-time-recovery.html)
+- [Restore individual tables](https://docs.percona.com/percona-xtrabackup/8.4/restore-individual-tables.html)
 
 *Replace `8.4` with your major version. For anything not covered here, see [docs.percona.com/percona-xtrabackup](https://docs.percona.com/percona-xtrabackup).*

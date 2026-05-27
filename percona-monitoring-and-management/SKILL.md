@@ -89,6 +89,24 @@ slow_query_log_use_global_control = all
 ```
 QAN is the continuous counterpart to `pt-query-digest` (see `percona-toolkit`): use QAN for ongoing monitoring, `pt-query-digest` for ad-hoc forensic dives on a captured log.
 
+## pmm-admin Reference
+
+```bash
+pmm-admin add postgresql --username=pmm --password=*** --environment=prod --cluster=pg1 my-pg 127.0.0.1:5432
+pmm-admin add mongodb --username=admin --password=*** --replication-set=rs0 my-mongo 127.0.0.1:27017
+pmm-admin list                       # services on this node
+pmm-admin remove mysql my-mysql      # stop monitoring a service
+pmm-admin status                     # agent connectivity / server version
+```
+The `--environment`, `--cluster`, `--replication-set`, and `--custom-labels` flags (on every `add`) drive filtering and grouping in the UI — set them consistently.
+
+## Alerting, Advisors, Auth
+
+- **Percona Alerting** (PMM 2.31+; replaces the old "Integrated Alerting") — build alert rules from Percona-supplied templates (MetricsQL), or wire an external Alertmanager. Don't reach for "Integrated Alerting"; it's gone.
+- **Advisors** — automated Security/Configuration/Performance/Query health checks that run on a schedule (default 24h). A free, Percona-specific source of "what's wrong with this server" that agents never think to mention.
+- **Auth:** PMM 3 uses Grafana **service-account tokens**; PMM 2 uses **API keys** (auto-migrated on upgrade). Always change the default `admin` password and front the server with TLS.
+- **Upgrades:** within a major line, upgrade via the Home-dashboard update panel (server **before** clients). Across majors (2→3) there's no in-place upgrade — deploy a fresh PMM 3 server and re-register clients with the `pmm-client` (v3) package.
+
 ## Sources
 
 - [PMM documentation home](https://docs.percona.com/percona-monitoring-and-management/) — pick your version (3 or 2)
