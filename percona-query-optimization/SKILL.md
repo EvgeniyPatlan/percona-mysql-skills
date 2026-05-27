@@ -111,4 +111,4 @@ Also: `CLIENT_STATISTICS` (per IP), `THREAD_STATISTICS` (needs `thread_statistic
 - [Additional Performance Schema tables](https://docs.percona.com/percona-server/8.4/additional-performance-schema-tables.html)
 - [pt-query-digest](https://docs.percona.com/percona-toolkit/pt-query-digest.html) · [pt-index-usage](https://docs.percona.com/percona-toolkit/pt-index-usage.html) · [pt-duplicate-key-checker](https://docs.percona.com/percona-toolkit/pt-duplicate-key-checker.html)
 
-*Replace `8.4` with your major version. For anything not covered here, see [docs.percona.com/percona-server](https://docs.percona.com/percona-server).*
+*Replace `8.4` with your major version. For anything not covered here, see [docs.percona.com/percona-server](https://docs.percona.com/percona-server/).*

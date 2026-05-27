@@ -79,4 +79,4 @@ On replicas, set `component_masking_functions.dictionaries_flush_interval_second
 - [Function & variable list](https://docs.percona.com/percona-server/8.4/data-masking-function-list.html)
 - [Quickstart](https://docs.percona.com/percona-server/8.4/quickstart-data-masking.html)
 
-*Tech preview, and not a security control. For anything not covered here, see [docs.percona.com/percona-server](https://docs.percona.com/percona-server).*
+*Tech preview, and not a security control. For anything not covered here, see [docs.percona.com/percona-server](https://docs.percona.com/percona-server/).*

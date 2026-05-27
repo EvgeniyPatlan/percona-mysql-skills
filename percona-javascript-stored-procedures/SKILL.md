@@ -75,4 +75,4 @@ SQL `NULL` ↔ JS `null`/`undefined` (both JS values map to SQL `NULL`).
 - [js_lang overview](https://docs.percona.com/percona-server/8.4/js-lang-overview.html) · [install](https://docs.percona.com/percona-server/8.4/install-js-lang.html) · [procedures](https://docs.percona.com/percona-server/8.4/js-lang-procedures.html)
 - [privileges](https://docs.percona.com/percona-server/8.4/js-lang-privileges.html) · [variables](https://docs.percona.com/percona-server/8.4/js-lang-variables.html) · [type conversions](https://docs.percona.com/percona-server/8.4/js-lang-type-conversions.html) · [Console API](https://docs.percona.com/percona-server/8.4/js-lang-console-api.html)
 
-*Tech preview — confirm GA status and version at [docs.percona.com/percona-server](https://docs.percona.com/percona-server) before production use.*
+*Tech preview — confirm GA status and version at [docs.percona.com/percona-server](https://docs.percona.com/percona-server/) before production use.*

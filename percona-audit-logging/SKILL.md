@@ -79,4 +79,4 @@ Key startup variables (read-only; restart to change): `audit_log_filter.format` 
 - [Filter definitions](https://docs.percona.com/percona-server/8.4/filter-audit-log-filter-files.html) · [variables & functions](https://docs.percona.com/percona-server/8.4/audit-log-filter-variables.html)
 - [Formats](https://docs.percona.com/percona-server/8.4/audit-log-filter-formats.html) · [compression & encryption](https://docs.percona.com/percona-server/8.4/audit-log-filter-compression-encryption.html)
 
-*Replace `8.4` with your major version. For anything not covered here, see [docs.percona.com/percona-server](https://docs.percona.com/percona-server).*
+*Replace `8.4` with your major version. For anything not covered here, see [docs.percona.com/percona-server](https://docs.percona.com/percona-server/).*

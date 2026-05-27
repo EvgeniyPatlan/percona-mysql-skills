@@ -147,4 +147,4 @@ Percona also offers **Percona Server Pro** builds (extra packaging/support featu
 - [UUID versions (uuid_vx)](https://docs.percona.com/percona-server/8.4/uuid-versions.html) · [Utility user](https://docs.percona.com/percona-server/8.4/utility-user.html)
 - [Compressed columns](https://docs.percona.com/percona-server/8.4/compressed-columns.html) · [Data masking](https://docs.percona.com/percona-server/8.4/data-masking-overview.html)
 
-*Replace `8.4` in the URLs with your server's major version. For anything not covered here, see the official docs at [docs.percona.com/percona-server](https://docs.percona.com/percona-server).*
+*Replace `8.4` in the URLs with your server's major version. For anything not covered here, see the official docs at [docs.percona.com/percona-server](https://docs.percona.com/percona-server/).*

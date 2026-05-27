@@ -115,4 +115,4 @@ The `--environment`, `--cluster`, `--replication-set`, and `--custom-labels` fla
 - [Add MySQL services](https://docs.percona.com/percona-monitoring-and-management/3/install-pmm/install-pmm-client/index.html)
 - [Query Analytics](https://docs.percona.com/percona-monitoring-and-management/3/use/qan/index.html)
 
-*Doc paths use `/3/` for PMM 3 and `/2/` for PMM 2 — adjust to your version. For anything not covered here, see [docs.percona.com/percona-monitoring-and-management](https://docs.percona.com/percona-monitoring-and-management).*
+*Doc paths use `/3/` for PMM 3 and `/2/` for PMM 2 — adjust to your version. For anything not covered here, see [docs.percona.com/percona-monitoring-and-management](https://docs.percona.com/percona-monitoring-and-management/).*

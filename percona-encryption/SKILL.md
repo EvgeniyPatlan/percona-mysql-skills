@@ -91,4 +91,4 @@ SELECT * FROM performance_schema.keyring_component_status;
 - [Encrypt binary & relay logs](https://docs.percona.com/percona-server/8.4/encrypt-binary-relay-log-files.html) · [redo/undo](https://docs.percona.com/percona-server/8.4/encrypt-logs.html) · [temp files](https://docs.percona.com/percona-server/8.4/encrypt-temporary-files.html)
 - [Verify encryption](https://docs.percona.com/percona-server/8.4/verify-encryption.html)
 
-*Replace `8.4` with your major version. For anything not covered here, see [docs.percona.com/percona-server](https://docs.percona.com/percona-server).*
+*Replace `8.4` with your major version. For anything not covered here, see [docs.percona.com/percona-server](https://docs.percona.com/percona-server/).*

@@ -76,4 +76,4 @@ By switching you gain (all free, open source): User Statistics, the extended slo
 - [Authentication methods](https://docs.percona.com/percona-server/8.4/authentication-methods.html)
 - [Upgrade overview](https://docs.percona.com/percona-server/8.4/upgrade.html) · [APT repo](https://docs.percona.com/percona-server/8.4/apt-repo.html)
 
-*Replace `8.4` with your major version. For anything not covered here, see [docs.percona.com/percona-server](https://docs.percona.com/percona-server).*
+*Replace `8.4` with your major version. For anything not covered here, see [docs.percona.com/percona-server](https://docs.percona.com/percona-server/).*

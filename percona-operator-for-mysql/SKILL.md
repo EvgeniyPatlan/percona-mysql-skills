@@ -155,4 +155,4 @@ kubectl get secret cluster1-secrets -o jsonpath='{.data.root}' | base64 -d   # r
 - PXC operator: [restore](https://docs.percona.com/percona-operator-for-mysql/pxc/backups-restore.html) · [scaling](https://docs.percona.com/percona-operator-for-mysql/pxc/scaling.html) · [TLS](https://docs.percona.com/percona-operator-for-mysql/pxc/TLS.html) · [users](https://docs.percona.com/percona-operator-for-mysql/pxc/users.html)
 - PS operator: [how it works](https://docs.percona.com/percona-operator-for-mysql/ps/how-it-works.html) · [backups](https://docs.percona.com/percona-operator-for-mysql/ps/backups.html)
 
-*Replace versions/paths with your installed operator. For anything not covered here, see [docs.percona.com/percona-operator-for-mysql](https://docs.percona.com/percona-operator-for-mysql).*
+*Replace versions/paths with your installed operator. For anything not covered here, see [docs.percona.com/percona-operator-for-mysql](https://docs.percona.com/percona-operator-for-mysql/).*

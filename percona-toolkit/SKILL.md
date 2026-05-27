@@ -100,6 +100,6 @@ host=db1
 - [pt-table-checksum](https://docs.percona.com/percona-toolkit/pt-table-checksum.html) · [pt-table-sync](https://docs.percona.com/percona-toolkit/pt-table-sync.html)
 - [pt-heartbeat](https://docs.percona.com/percona-toolkit/pt-heartbeat.html) · [pt-kill](https://docs.percona.com/percona-toolkit/pt-kill.html)
 - [pt-upgrade](https://docs.percona.com/percona-toolkit/pt-upgrade.html) · [pt-stalk](https://docs.percona.com/percona-toolkit/pt-stalk.html) · [pt-config-diff](https://docs.percona.com/percona-toolkit/pt-config-diff.html)
-- [DSN options](https://docs.percona.com/percona-toolkit/dsn-data-source-name-specifications.html)
+- [Percona Toolkit docs (each tool's page documents its DSN options)](https://docs.percona.com/percona-toolkit/)
 
-*Each tool also has full docs via `man pt-<tool>` and `pt-<tool> --help`. For anything not covered here, see [docs.percona.com/percona-toolkit](https://docs.percona.com/percona-toolkit).*
+*Each tool also has full docs via `man pt-<tool>` and `pt-<tool> --help`. For anything not covered here, see [docs.percona.com/percona-toolkit](https://docs.percona.com/percona-toolkit/).*

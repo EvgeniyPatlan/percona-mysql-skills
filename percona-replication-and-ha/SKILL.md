@@ -85,4 +85,4 @@ Single-primary (auto-elected writer, automatic failover) or multi-primary (all w
 - [8.4 breaking changes](https://docs.percona.com/percona-server/8.4/8.4-breaking-changes.html)
 - Upstream base: [MySQL 8.4 replication](https://dev.mysql.com/doc/refman/8.4/en/replication.html) · [GTID](https://dev.mysql.com/doc/refman/8.4/en/replication-gtids.html) · [semi-sync](https://dev.mysql.com/doc/refman/8.4/en/replication-semisync.html) · [Group Replication](https://dev.mysql.com/doc/refman/8.4/en/group-replication.html)
 
-*Replace `8.4` with your major version. For Galera clustering see `percona-xtradb-cluster`; for anything else see [docs.percona.com/percona-server](https://docs.percona.com/percona-server).*
+*Replace `8.4` with your major version. For Galera clustering see `percona-xtradb-cluster`; for anything else see [docs.percona.com/percona-server](https://docs.percona.com/percona-server/).*

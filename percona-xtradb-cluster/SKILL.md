@@ -155,4 +155,4 @@ GALERA_OPTIONS="socket.ssl_cipher=AES128-SHA256;socket.ssl_key=...;socket.ssl_ce
 - [Load balancing with ProxySQL](https://docs.percona.com/percona-xtradb-cluster/8.4/load-balance-proxysql.html) · [HAProxy](https://docs.percona.com/percona-xtradb-cluster/8.4/haproxy.html)
 - [Galera Arbitrator (garbd)](https://docs.percona.com/percona-xtradb-cluster/8.4/garbd-howto.html) · [Encrypt traffic](https://docs.percona.com/percona-xtradb-cluster/8.4/encrypt-traffic.html)
 
-*Replace `8.4` with your major version. For anything not covered here, see [docs.percona.com/percona-xtradb-cluster](https://docs.percona.com/percona-xtradb-cluster).*
+*Replace `8.4` with your major version. For anything not covered here, see [docs.percona.com/percona-xtradb-cluster](https://docs.percona.com/percona-xtradb-cluster/).*

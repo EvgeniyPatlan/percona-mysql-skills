@@ -171,4 +171,4 @@ mysql db -e "ALTER TABLE t IMPORT TABLESPACE;"
 - [Point-in-time recovery](https://docs.percona.com/percona-xtrabackup/8.4/point-in-time-recovery.html)
 - [Restore individual tables](https://docs.percona.com/percona-xtrabackup/8.4/restore-individual-tables.html)
 
-*Replace `8.4` with your major version. For anything not covered here, see [docs.percona.com/percona-xtrabackup](https://docs.percona.com/percona-xtrabackup).*
+*Replace `8.4` with your major version. For anything not covered here, see [docs.percona.com/percona-xtrabackup](https://docs.percona.com/percona-xtrabackup/).*
